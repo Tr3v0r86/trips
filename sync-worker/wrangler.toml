@@ -1,0 +1,8 @@
+name = "trips-sync"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+account_id = "3ba7e33e9b8756130d63f4ee57fbf69b"
+
+[[kv_namespaces]]
+binding = "TRIPS"
+id = "47f92f8932ad4ed58899dda63a9d1199"

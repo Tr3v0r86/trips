@@ -25,6 +25,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -128,3 +129,64 @@ footer { margin-top: 44px; text-align: center; color: var(--ink-soft); font-size
 .trip-link { display: block; text-decoration: none; color: inherit; }
 .trip-link .card { transition: transform .1s; }
 .trip-link:active .card { transform: scale(.985); }
+
+/* visit checks — big shared-state tick per stop */
+input.visit {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 34px; height: 34px;
+  margin: 0 0 0 auto;
+  align-self: center;
+  border: 2.5px solid var(--wine);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+input.visit:checked { background: var(--good); border-color: var(--good); }
+input.visit:checked::after {
+  content: "✓";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFF7EE; font-size: 20px; font-weight: 800;
+}
+.card.done { opacity: .55; }
+.card.done .stop-num { background: var(--good); }
+
+/* install sheet */
+#install {
+  position: fixed; inset: 0;
+  background: rgba(30, 15, 18, .45);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 50;
+}
+.install-sheet {
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 22px 20px 30px;
+  max-width: 480px; width: 100%;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 -4px 24px rgba(30, 15, 18, .25);
+}
+.install-sheet img { border-radius: 13px; }
+.install-sheet h3 {
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  color: var(--wine); font-size: 22px; margin: 10px 0 6px;
+}
+.install-sheet p { margin: 6px 0 12px; }
+#install-close {
+  position: absolute; top: 8px; right: 12px;
+  background: none; border: none;
+  font-size: 30px; line-height: 1;
+  color: var(--ink-soft); cursor: pointer;
+  padding: 6px;
+}
+.share-glyph {
+  display: inline-block;
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 6px;
+  padding: 0 6px;
+  transform: rotate(90deg);
+}
