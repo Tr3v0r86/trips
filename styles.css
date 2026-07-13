@@ -115,7 +115,7 @@ a { color: var(--wine); }
 }
 .btn.primary { background: var(--wine); color: #FFF7EE; }
 details.story { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
-details.story summary { cursor: pointer; color: var(--wine); font-weight: 600; }
+details.story summary { cursor: pointer; color: var(--wine); font-weight: 600; padding: 10px 0; }
 details.story p { color: var(--ink-soft); }
 table.clock { width: 100%; border-collapse: collapse; margin: 10px 0; }
 table.clock td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -135,10 +135,10 @@ input.visit {
   appearance: none;
   -webkit-appearance: none;
   flex: none;
-  width: 34px; height: 34px;
+  width: 44px; height: 44px;
   margin: 0 0 0 auto;
   align-self: center;
-  border: 2.5px solid var(--wine);
+  border: 3px solid var(--wine);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
@@ -149,7 +149,7 @@ input.visit:checked::after {
   content: "✓";
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  color: #FFF7EE; font-size: 20px; font-weight: 800;
+  color: #FFF7EE; font-size: 26px; font-weight: 800;
 }
 .card.done { opacity: .55; }
 .card.done .stop-num { background: var(--good); }
@@ -177,11 +177,11 @@ input.visit:checked::after {
 }
 .install-sheet p { margin: 6px 0 12px; }
 #install-close {
-  position: absolute; top: 8px; right: 12px;
+  position: absolute; top: 4px; right: 6px;
   background: none; border: none;
   font-size: 30px; line-height: 1;
   color: var(--ink-soft); cursor: pointer;
-  padding: 6px;
+  padding: 10px 14px;
 }
 .share-glyph {
   display: inline-block;
