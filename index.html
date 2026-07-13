@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#7A2E3F">
+<meta name="apple-mobile-web-app-title" content="Trips">
+<title>Cardozo trips</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Trips</h1>
+    <p>Family trip plans, built to be followed from a phone in the car.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <a class="trip-link" href="./ile-dorleans/">
+    <div class="card">
+      <div class="stop-head"><span class="stop-num">🍇</span>
+        <h3>Île d'Orléans, then Sainte-Anne-de-Beaupré
+          <span class="stop-tag">Québec City · a Monday in summer 2026 · full-day driving loop</span></h3>
+      </div>
+      <p>Nine easy stops for five people — views, chocolate, a 1734 manor, two wineries, and a basilica finale.</p>
+    </div>
+  </a>
+
+  <footer>
+    <p>Not indexed, not listed — just for us.</p>
+  </footer>
+</main>
+
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+</script>
+</body>
+</html>

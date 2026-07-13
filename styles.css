@@ -1,0 +1,130 @@
+/* Cardozo Trips — shared styles. Warm print-guide register, mobile-first, big type for the whole famille. */
+:root {
+  --bg: #FAF6EF;
+  --card: #FFFFFF;
+  --ink: #33272A;
+  --ink-soft: #6E5E60;
+  --wine: #7A2E3F;
+  --wine-deep: #5E2231;
+  --cream: #F5EADC;
+  --line: #E5DACB;
+  --good: #3D6B62;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #211B1C;
+    --card: #2C2425;
+    --ink: #F0E7E2;
+    --ink-soft: #C4B3B0;
+    --wine: #D98A9C;
+    --wine-deep: #E8B3BF;
+    --cream: #362B28;
+    --line: #453738;
+    --good: #8FBFB4;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: 48px;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 18px; }
+header.hero {
+  background: linear-gradient(160deg, var(--wine) 0%, #5E2231 100%);
+  color: #FFF7EE;
+  padding: 34px 0 26px;
+  margin-bottom: 22px;
+}
+@media (prefers-color-scheme: dark) {
+  header.hero { background: linear-gradient(160deg, #4A1B28 0%, #33121B 100%); }
+}
+header.hero h1 {
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: clamp(28px, 6vw, 40px);
+  line-height: 1.15;
+  margin: 0 0 10px;
+}
+header.hero p { margin: 0; opacity: .92; font-size: 16px; }
+h2 {
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  color: var(--wine);
+  font-size: 26px;
+  margin: 34px 0 12px;
+}
+a { color: var(--wine); }
+.callout {
+  background: var(--cream);
+  border-left: 5px solid var(--wine);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 14px 16px;
+  margin: 18px 0;
+}
+.callout strong.title { display: block; color: var(--wine); font-size: 18px; margin-bottom: 6px; }
+.callout p { margin: 8px 0 0; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 18px 16px;
+  margin: 14px 0;
+  box-shadow: 0 1px 3px rgba(60, 30, 35, .06);
+}
+.stop-head { display: flex; align-items: baseline; gap: 12px; }
+.stop-num {
+  flex: none;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--wine);
+  color: #FFF7EE;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  align-self: center;
+  font-size: 17px;
+}
+.stop-head h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: 21px;
+  line-height: 1.25;
+}
+.stop-tag { display: block; font-size: 14px; color: var(--ink-soft); font-weight: 400; margin-top: 2px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; font-size: 15px; }
+.meta span {
+  background: var(--cream);
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+.meta b { color: var(--wine); }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.btn {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--wine);
+  color: var(--wine);
+  background: transparent;
+}
+.btn.primary { background: var(--wine); color: #FFF7EE; }
+details.story { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+details.story summary { cursor: pointer; color: var(--wine); font-weight: 600; }
+details.story p { color: var(--ink-soft); }
+table.clock { width: 100%; border-collapse: collapse; margin: 10px 0; }
+table.clock td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.clock td.t { white-space: nowrap; font-weight: 700; color: var(--wine); width: 86px; }
+table.clock td.c { width: 40px; text-align: right; }
+table.clock input { width: 24px; height: 24px; accent-color: var(--wine); }
+table.clock tr.done td { opacity: .45; text-decoration: line-through; }
+table.clock tr.done td.c { text-decoration: none; opacity: 1; }
+.note { font-size: 15px; color: var(--ink-soft); font-style: italic; }
+footer { margin-top: 44px; text-align: center; color: var(--ink-soft); font-size: 14px; }
+.trip-link { display: block; text-decoration: none; color: inherit; }
+.trip-link .card { transition: transform .1s; }
+.trip-link:active .card { transform: scale(.985); }
