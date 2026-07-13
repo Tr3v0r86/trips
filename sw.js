@@ -1,5 +1,5 @@
 // ponytail: cache-first SW, bump CACHE version on any content change
-const CACHE = 'trips-v2';
+const CACHE = 'trips-v3';
 const ASSETS = [
   './',
   './index.html',
