@@ -91,7 +91,7 @@ test('HTTP failures and malformed responses preserve pending intent', async () =
   }
 });
 
-test('active v5 worker confirms complete guide cache and rejects missing images', async () => {
+test('active v6 worker confirms complete guide cache and rejects missing images', async () => {
   let callbacks = {}, missing = false, assets;
   const context = {
     URL, Promise,
@@ -104,7 +104,7 @@ test('active v5 worker confirms complete guide cache and rejects missing images'
   for (const incomplete of [false, true]) {
     missing = incomplete; let reply;
     callbacks.message({ data: { type: 'CHECK_HANGZHOU_CACHE' }, ports: [{ postMessage: value => { reply = value; } }], waitUntil: p => { operation = p; } });
-    await operation; assert.equal(reply.cache, 'trips-v5'); assert.equal(reply.cached, !incomplete);
+    await operation; assert.equal(reply.cache, 'trips-v6'); assert.equal(reply.cached, !incomplete);
   }
   let intercepted = false;
   callbacks.fetch({ request: { method: 'GET', url: 'https://trips-sync.elcportal.workers.dev/hangzhou/state' }, respondWith: () => { intercepted = true; } });
@@ -199,21 +199,75 @@ test('native area hashes select one area, keep current link, and follow back/for
   hash = '#unknown'; onHashChange(); assertArea('lake');
 });
 
-test('no-JS markup retains all native areas, with place actions before photos and secondary details', () => {
+test('no-JS markup keeps every picker and full place readable, with native anchors and secondary sources', () => {
   const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
-  assert(!/<section[^>]+hidden/.test(html));
+  assert(!/<(?:section|article)[^>]+hidden/.test(html));
   assert(!html.includes('role="tab"'));
   assert(!html.includes('of 11 visited'));
   assert(!html.includes('class="hero"'));
   const lake = html.match(/<section id="lake".*?<\/section>/s)[0];
-  assert(lake.indexOf('data-stop="luckin"') < lake.indexOf('<figure'));
-  assert(lake.indexOf('Bikes: separate lanes only') < lake.indexOf('data-stop="luckin"'));
+  assert(lake.indexOf('href="#place-luckin"') < lake.indexOf('<figure'));
+  assert(lake.indexOf('Bikes: separate lanes only') < lake.indexOf('href="#place-luckin"'));
   for (const article of html.matchAll(/<article.*?<\/article>/gs)) {
-    assert(article[0].indexOf('class="actions"') < article[0].indexOf('class="place-details"'));
-    assert(article[0].indexOf('class="place-details"') < article[0].indexOf('class="visit"'));
+    assert(article[0].includes('class="detail-body"'));
+    assert(article[0].includes('class="visit"'));
+    assert(article[0].includes('class="copy-fallback-slot"'));
+    assert(article[0].includes('class="actions"'));
   }
   const css = fs.readFileSync(require.resolve('../hangzhou/guide.css'), 'utf8');
   assert(css.includes('.section-nav{position:fixed;bottom:0'));
   assert(css.includes('padding-bottom:env(safe-area-inset-bottom)'));
-  assert(css.includes('.actions .manual-copy{grid-column:1/-1}'));
+  assert(css.includes('.enhanced .place-view:not([hidden]) .actions{position:fixed'));
+});
+
+function routeFixture(initialHash = '') {
+  const { createAreaNavigation } = require('../hangzhou/guide.js');
+  const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
+  const areaIDs = ['lake', 'neighbourhood', 'hefang', 'temple'];
+  const areas = areaIDs.map(id => ({ id, hidden: false }));
+  const places = [...html.matchAll(/<article id="([^"]+)"[^>]*data-area="([^"]+)"/g)].map(match => ({ id: match[1], area: match[2], hidden: false }));
+  const links = areaIDs.map(id => ({ values: { href: `#${id}` }, getAttribute(key) { return this.values[key]; }, setAttribute(key, value) { this.values[key] = value; }, removeAttribute(key) { delete this.values[key]; } }));
+  let hash = initialHash, change, position = 0, lastScroll, route;
+  createAreaNavigation({ areas, places, links, readHash: () => hash, listen: callback => { change = callback; }, readScroll: () => position, route: value => { route = value; }, scroll: (...args) => { lastScroll = args; } });
+  return { areas, places, links, get route() { return route; }, get lastScroll() { return lastScroll; }, go(next, scrollY = 0) { position = scrollY; hash = next; change(); } };
+}
+
+test('every place opens alone with its owning area and correct native map/copy actions', () => {
+  const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
+  const fixture = routeFixture();
+  assert.equal(fixture.places.length, IDS.length);
+  for (const place of fixture.places) {
+    fixture.go(`#${place.id}`, 80);
+    assert.deepEqual(fixture.places.filter(item => !item.hidden).map(item => item.id), [place.id]);
+    assert(fixture.areas.every(area => area.hidden));
+    assert.deepEqual(fixture.route, { area: place.area, place: place.id });
+    const body = html.match(new RegExp(`<article id="${place.id}"[\\s\\S]*?</article>`))[0];
+    assert(body.includes(`href="#${place.area}"`));
+    assert(body.includes('https://uri.amap.com/search?keyword='));
+    assert(body.includes('data-copy="'));
+    assert.equal([...body.matchAll(/type="checkbox"/g)].length, 1);
+    assert.equal([...body.matchAll(/https:\/\/uri.amap.com\/search/g)].length, 1);
+  }
+});
+
+test('detail back restores the picker scroll, history changes keep ownership, and direct/reloaded places are safe', () => {
+  const fixture = routeFixture('#hefang');
+  fixture.go('#place-imperial', 164);
+  assert.deepEqual(fixture.route, { area: 'hefang', place: 'place-imperial' });
+  fixture.go('#hefang');
+  assert.equal(fixture.lastScroll[3], 164);
+  assert.deepEqual(fixture.areas.filter(area => !area.hidden).map(area => area.id), ['hefang']);
+  fixture.go('#place-imperial'); // browser Forward
+  assert.deepEqual(fixture.places.filter(place => !place.hidden).map(place => place.id), ['place-imperial']);
+  fixture.go('#main'); assert.equal(fixture.route.place, 'place-imperial');
+  for (const id of IDS) {
+    const direct = routeFixture(`#place-${id}`);
+    const selected = direct.places.find(place => !place.hidden);
+    assert.equal(selected.id, `place-${id}`);
+    direct.go(`#${selected.area}`); // contextual Back has a valid owner even without prior history
+    assert.equal(direct.route.place, null);
+    assert.equal(direct.route.area, selected.area);
+    assert.equal(direct.lastScroll[3], 0);
+  }
+  fixture.go('#place-unknown'); assert.deepEqual(fixture.route, { area: 'lake', place: null });
 });

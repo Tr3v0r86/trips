@@ -105,19 +105,26 @@
     return { set, flush, snapshot: () => JSON.parse(JSON.stringify({ visits, pending, revision })) };
   }
 
-  function createAreaNavigation({ areas, links, readHash, listen, scroll = () => {} }) {
+  function createAreaNavigation({ areas, links, places = [], readHash, listen, readScroll = () => 0, route = () => {}, scroll = () => {} }) {
     const ids = ['lake', 'neighbourhood', 'hefang', 'temple'];
-    let selected = 'lake';
+    const positions = {};
+    let selected = 'lake', selectedPlace = null;
     function apply(move = false) {
       const hash = readHash().replace(/^#/, '');
-      const id = ids.includes(hash) ? hash : hash === 'main' ? selected : 'lake';
-      selected = id;
-      areas.forEach(area => { area.hidden = area.id !== id; });
+      const place = places.find(item => item.id === hash);
+      const id = place ? place.area : ids.includes(hash) ? hash : hash === 'main' ? selected : 'lake';
+      const placeId = place ? place.id : hash === 'main' ? selectedPlace : null;
+      if (move && !selectedPlace) positions[selected] = readScroll();
+      const returning = !!selectedPlace && !placeId;
+      selected = id; selectedPlace = placeId;
+      areas.forEach(area => { area.hidden = area.id !== id || !!placeId; });
+      places.forEach(item => { item.hidden = item.id !== placeId; });
       links.forEach(link => {
         if (link.getAttribute('href') === `#${id}`) link.setAttribute('aria-current', 'location');
         else link.removeAttribute('aria-current');
       });
-      if (move) scroll(id, hash === 'main');
+      route({ area: id, place: placeId });
+      if (move) scroll(id, hash === 'main', placeId, returning ? positions[id] || 0 : 0);
       return id;
     }
     apply();
@@ -129,20 +136,31 @@
   if (!root.document) return;
   const document = root.document;
   const navigation = document.querySelector('.section-nav');
-  const sizeNavigation = () => document.documentElement.style.setProperty('--nav-height', `${navigation.getBoundingClientRect().height}px`);
-  sizeNavigation();
+  const placeViews = [...document.querySelectorAll('.place-view')];
+  document.body.classList.add('enhanced');
+  const sizeNavigation = () => {
+    const dock = navigation.hidden ? placeViews.find(view => !view.hidden)?.querySelector('.actions') : navigation;
+    if (dock) document.documentElement.style.setProperty('--nav-height', `${dock.getBoundingClientRect().height}px`);
+  };
   root.addEventListener('resize', sizeNavigation);
-  if (root.ResizeObserver) new root.ResizeObserver(sizeNavigation).observe(navigation);
+  if (root.ResizeObserver) {
+    const observer = new root.ResizeObserver(sizeNavigation);
+    observer.observe(navigation);
+    placeViews.forEach(view => observer.observe(view.querySelector('.actions')));
+  }
   createAreaNavigation({
     areas: [...document.querySelectorAll('.chapter')],
+    places: placeViews.map(view => ({ id: view.id, area: view.dataset.area, get hidden() { return view.hidden; }, set hidden(value) { view.hidden = value; } })),
     links: [...navigation.querySelectorAll('a')],
     readHash: () => root.location.hash,
+    readScroll: () => root.scrollY,
     listen: callback => root.addEventListener('hashchange', callback),
-    scroll: (id, skipToMain) => {
+    route: state => { navigation.hidden = !!state.place; sizeNavigation(); },
+    scroll: (id, skipToMain, placeId, restoredPosition) => {
       document.getElementById('guide-info').open = false;
-      const target = document.getElementById(skipToMain ? 'main' : `${id}-title`);
+      const target = document.getElementById(skipToMain ? 'main' : placeId ? `${placeId}-title` : `${id}-title`);
       target.focus({ preventScroll: true });
-      root.scrollTo({ top: skipToMain ? Math.max(0, target.offsetTop - 16) : 0, behavior: 'instant' });
+      root.scrollTo({ top: skipToMain ? Math.max(0, target.offsetTop - 16) : placeId ? 0 : restoredPosition, behavior: 'instant' });
     }
   });
   const checkboxes = [...document.querySelectorAll('input[data-id]')];
@@ -175,7 +193,8 @@
   let copyTimer;
   document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
     const text = button.dataset.copy;
-    const previous = button.closest('.actions, .reservation, .food-helper').querySelector('.manual-copy');
+    const container = button.closest('.place-view')?.querySelector('.copy-fallback-slot') || button.closest('.reservation, .food-helper');
+    const previous = container.querySelector('.manual-copy');
     try {
       if (!root.navigator.clipboard) throw new Error('Clipboard unavailable');
       await root.navigator.clipboard.writeText(text);
@@ -183,7 +202,7 @@
       copyStatus.textContent = `Copied: ${text}`;
     } catch (_) {
       const fallback = previous || document.getElementById('manual-copy-template').content.firstElementChild.cloneNode(true);
-      if (!previous) button.closest('.actions, .reservation, .food-helper').append(fallback);
+      if (!previous) container.append(fallback);
       const area = fallback.querySelector('textarea');
       area.value = text; area.focus({ preventScroll: true }); area.select();
       fallback.scrollIntoView({ block: 'nearest' });
@@ -220,7 +239,7 @@
         controller.postMessage({ type: 'CHECK_HANGZHOU_CACHE' }, [channel.port2]);
       });
       if (check !== cacheCheck) return;
-      offlineMessage(result && result.cached && result.cache === 'trips-v5' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
+      offlineMessage(result && result.cached && result.cache === 'trips-v6' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
     } catch (_) { if (check === cacheCheck) offlineMessage('Offline availability unconfirmed · connect and reload.'); }
   }
   if ('serviceWorker' in root.navigator) {
