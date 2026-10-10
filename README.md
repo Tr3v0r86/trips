@@ -7,6 +7,7 @@ Family trip plans as installable web pages. Static HTML, one shared `styles.css`
 ```
 index.html            trip list (one card per trip)
 ile-dorleans/         Île d'Orléans + Sainte-Anne-de-Beaupré day loop (summer 2026)
+hangzhou/             Hangzhou lake, neighbourhood, Hefang and Lingyin guide (October 2026)
 styles.css            shared design (wine/cream print-guide register, 44px+ touch targets)
 sw.js                 offline cache — bump CACHE version on ANY content change
 manifest.webmanifest  PWA — Add to Home Screen works on iOS/Android
@@ -27,6 +28,14 @@ CNAME                 trips.trevorcardozo.com (GitHub Pages custom domain)
 ## Sync worker
 
 `sync-worker/worker.js` — GET/POST `/<trip>/state`, state = `{stopId: 1}` JSON per trip in KV. Deploy: `cd sync-worker && npx wrangler deploy` (Cloudflare account: trevorc@elc.ac.th / elcportal.workers.dev, KV namespace `TRIPS`). Clients are offline-first: localStorage paints instantly, worker polled every 5s. Fresh deploys can 1042 for ~60s (workers.dev propagation) — wait, don't debug.
+
+Hangzhou persists visited flags and the latest pending intent together before sending. Tabs merge current stored intents synchronously before writing; shared acknowledgement revisions prevent an older tab from restoring a completed intent. One queue per tab reads shared state and sends pending changes; only the matching local revision is acknowledged, so a newer tap survives an earlier request. Pending edits retry on reconnect, visibility and every 5s while visible. Storage/network failures are shown in the guide. The existing KV worker is eventually consistent and has a read/modify/write race. Simultaneous edits in multiple tabs or devices can arrive out of order; the client preserves pending offline edits but cannot guarantee instant agreement between phones.
+
+Hangzhou offline readiness is confirmed by a message from the active v5 service worker checking every guide/photo cache entry. Maps, booking mini-programs and shared updates require internet. Image sources/licenses are shown next to each photograph and recorded in `hangzhou/images/credits.md`.
+
+The Hangzhou guide is a pocket companion: four native area hashes become one visible area when JavaScript is available, with fixed bottom navigation. Without JavaScript, all areas remain readable. Place map/copy actions stay on the face; instructions, stories, visited controls and reference photos use native disclosures. Copy failure reveals selectable text beside the triggering control.
+
+Run the mocked sync, navigation and cache-contract checks with `node --test tests/hangzhou.test.cjs`. They never call the production worker.
 
 ## Deploy
 
