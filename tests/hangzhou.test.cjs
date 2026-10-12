@@ -91,20 +91,23 @@ test('HTTP failures and malformed responses preserve pending intent', async () =
   }
 });
 
-test('active v7 worker confirms complete guide cache and rejects missing images', async () => {
+test('active v8 worker confirms complete guide cache and rejects missing images', async () => {
   let callbacks = {}, missing = false, assets;
   const context = {
     URL, Promise,
+    Request: class BrowserRequest extends Request { constructor(input, options) { super(new URL(input, 'https://example.com/sw.js'), options); } },
     caches: { open: async () => ({ match: async path => missing && path.endsWith('lingyin.jpg') ? undefined : {}, addAll: async paths => { assets = paths; } }) },
     self: { location: { origin: 'https://example.com' }, addEventListener: (type, callback) => { callbacks[type] = callback; }, skipWaiting: async () => {} }
   };
   vm.runInNewContext(fs.readFileSync(require.resolve('../sw.js'), 'utf8'), context);
   let operation; callbacks.install({ waitUntil: p => { operation = p; } }); await operation;
-  assert(assets.includes('./hangzhou/')); assert(assets.includes('./hangzhou/index.html'));
+  assert(assets.some(request => request.url === 'https://example.com/hangzhou/'));
+  assert(assets.some(request => request.url === 'https://example.com/hangzhou/index.html'));
+  assert(assets.every(request => request.cache === 'reload'));
   for (const incomplete of [false, true]) {
     missing = incomplete; let reply;
     callbacks.message({ data: { type: 'CHECK_HANGZHOU_CACHE' }, ports: [{ postMessage: value => { reply = value; } }], waitUntil: p => { operation = p; } });
-    await operation; assert.equal(reply.cache, 'trips-v7'); assert.equal(reply.cached, !incomplete);
+    await operation; assert.equal(reply.cache, 'trips-v8'); assert.equal(reply.cached, !incomplete);
   }
   let intercepted = false;
   callbacks.fetch({ request: { method: 'GET', url: 'https://trips-sync.elcportal.workers.dev/hangzhou/state' }, respondWith: () => { intercepted = true; } });
@@ -350,4 +353,25 @@ test('existing v2 never reads v1 again, and failed migration preserves in-memory
   assert.equal(readonly.snapshot().visits['2026-10-12-xiaohe'], 1);
   assert.deepEqual(readonly.snapshot().pending.longjing, { v: true, rev: 2 });
   assert.match(warning, /may be lost on reload/);
+});
+
+test('service-worker installation refreshes guide HTML and JS even with stale browser HTTP cache', async () => {
+  const callbacks = {}, offlineCache = new Map();
+  const staleHTTP = 'old guide: four area tabs';
+  const deployed = 'current guide: Today, Earlier, Tomorrow';
+  const context = {
+    URL, Promise,
+    Request: class BrowserRequest extends Request { constructor(input, options) { super(new URL(input, 'https://example.com/sw.js'), options); } },
+    caches: { open: async () => ({ addAll: async requests => {
+      for (const request of requests) {
+        const url = new URL(typeof request === 'string' ? request : request.url, 'https://example.com/sw.js');
+        // The browser would otherwise serve its previously cached HTTP response.
+        offlineCache.set(url.pathname, request.cache === 'reload' ? deployed : staleHTTP);
+      }
+    } }) },
+    self: { location: { origin: 'https://example.com' }, addEventListener: (type, callback) => { callbacks[type] = callback; }, skipWaiting: async () => {} }
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../sw.js'), 'utf8'), context);
+  let operation; callbacks.install({ waitUntil: promise => { operation = promise; } }); await operation;
+  for (const path of ['/hangzhou/', '/hangzhou/index.html', '/hangzhou/guide.js', '/hangzhou/guide.css']) assert.equal(offlineCache.get(path), deployed);
 });
