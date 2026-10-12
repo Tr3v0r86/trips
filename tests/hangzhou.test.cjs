@@ -91,7 +91,7 @@ test('HTTP failures and malformed responses preserve pending intent', async () =
   }
 });
 
-test('active v6 worker confirms complete guide cache and rejects missing images', async () => {
+test('active v7 worker confirms complete guide cache and rejects missing images', async () => {
   let callbacks = {}, missing = false, assets;
   const context = {
     URL, Promise,
@@ -104,22 +104,23 @@ test('active v6 worker confirms complete guide cache and rejects missing images'
   for (const incomplete of [false, true]) {
     missing = incomplete; let reply;
     callbacks.message({ data: { type: 'CHECK_HANGZHOU_CACHE' }, ports: [{ postMessage: value => { reply = value; } }], waitUntil: p => { operation = p; } });
-    await operation; assert.equal(reply.cache, 'trips-v6'); assert.equal(reply.cached, !incomplete);
+    await operation; assert.equal(reply.cache, 'trips-v7'); assert.equal(reply.cached, !incomplete);
   }
   let intercepted = false;
   callbacks.fetch({ request: { method: 'GET', url: 'https://trips-sync.elcportal.workers.dev/hangzhou/state' }, respondWith: () => { intercepted = true; } });
   assert.equal(intercepted, false);
 });
 
-test('public markup has exactly the supported IDs, four native anchors and encoded Amap queries', () => {
+test('public markup has exactly the supported IDs, dated native anchors and encoded Amap queries', () => {
   const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
   assert.deepEqual([...html.matchAll(/data-id="([^"]+)"/g)].map(match => match[1]), IDS);
-  for (const section of ['lake', 'neighbourhood', 'hefang', 'temple']) assert(html.includes(`href="#${section}"`) && html.includes(`id="${section}"`));
+  for (const section of ['today', 'earlier', 'tomorrow']) assert(html.includes(`href="#${section}"`) && html.includes(`id="${section}"`));
   const maps = [...html.matchAll(/href="(https:\/\/uri.amap.com\/search[^\"]+)"/g)];
-  assert.equal(maps.length, 11);
+  assert.equal(maps.length, IDS.length + 1);
   for (const [, href] of maps) { const url = new URL(href.replaceAll('&amp;', '&')); assert.equal(url.searchParams.get('city'), '杭州'); assert(url.searchParams.get('keyword')); }
   assert.equal([...html.matchAll(/<img /g)].length, 3);
-  assert(html.includes('UNBOOKED / UNVERIFIED'));
+  assert(html.includes('Concierge checking entry — not confirmed'));
+  assert(html.includes('Same-day online reservations are unavailable'));
 });
 
 test('two offline tabs preserve each other’s latest edits through saves, polls and reload', async () => {
@@ -205,7 +206,7 @@ test('no-JS markup keeps every picker and full place readable, with native ancho
   assert(!html.includes('role="tab"'));
   assert(!html.includes('of 11 visited'));
   assert(!html.includes('class="hero"'));
-  const lake = html.match(/<section id="lake".*?<\/section>/s)[0];
+  const lake = html.match(/<section id="earlier".*?<\/section>/s)[0];
   assert(lake.indexOf('href="#place-luckin"') < lake.indexOf('<figure'));
   assert(lake.indexOf('Bikes: separate lanes only') < lake.indexOf('href="#place-luckin"'));
   for (const article of html.matchAll(/<article.*?<\/article>/gs)) {
@@ -223,7 +224,7 @@ test('no-JS markup keeps every picker and full place readable, with native ancho
 function routeFixture(initialHash = '') {
   const { createAreaNavigation } = require('../hangzhou/guide.js');
   const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
-  const areaIDs = ['lake', 'neighbourhood', 'hefang', 'temple'];
+  const areaIDs = [...html.matchAll(/<section id="([^"]+)"/g)].map(match => match[1]);
   const areas = areaIDs.map(id => ({ id, hidden: false }));
   const places = [...html.matchAll(/<article id="([^"]+)"[^>]*data-area="([^"]+)"/g)].map(match => ({ id: match[1], area: match[2], hidden: false }));
   const links = areaIDs.map(id => ({ values: { href: `#${id}` }, getAttribute(key) { return this.values[key]; }, setAttribute(key, value) { this.values[key] = value; }, removeAttribute(key) { delete this.values[key]; } }));
@@ -251,12 +252,12 @@ test('every place opens alone with its owning area and correct native map/copy a
 });
 
 test('detail back restores the picker scroll, history changes keep ownership, and direct/reloaded places are safe', () => {
-  const fixture = routeFixture('#hefang');
+  const fixture = routeFixture('#earlier');
   fixture.go('#place-imperial', 164);
-  assert.deepEqual(fixture.route, { area: 'hefang', place: 'place-imperial' });
-  fixture.go('#hefang');
+  assert.deepEqual(fixture.route, { area: 'earlier', place: 'place-imperial' });
+  fixture.go('#earlier');
   assert.equal(fixture.lastScroll[3], 164);
-  assert.deepEqual(fixture.areas.filter(area => !area.hidden).map(area => area.id), ['hefang']);
+  assert.deepEqual(fixture.areas.filter(area => !area.hidden).map(area => area.id), ['earlier']);
   fixture.go('#place-imperial'); // browser Forward
   assert.deepEqual(fixture.places.filter(place => !place.hidden).map(place => place.id), ['place-imperial']);
   fixture.go('#main'); assert.equal(fixture.route.place, 'place-imperial');
@@ -269,5 +270,84 @@ test('detail back restores the picker scroll, history changes keep ownership, an
     assert.equal(direct.route.area, selected.area);
     assert.equal(direct.lastScroll[3], 0);
   }
-  fixture.go('#place-unknown'); assert.deepEqual(fixture.route, { area: 'lake', place: null });
+  fixture.go('#place-unknown'); assert.deepEqual(fixture.route, { area: 'today', place: null });
+});
+
+test('all eleven old marks and pending intents survive independently of six unchecked daily stops', () => {
+  const oldIDs = ['luckin', 'beishan', 'yanggong', 'guozhuang', 'haier', 'room', 'hefang-street', 'imperial', 'lingyin', 'yongfu', 'longjing'];
+  const dailyIDs = ['2026-10-12-lingyin', '2026-10-12-yongfu', '2026-10-12-longjing', '2026-10-12-room', '2026-10-12-xiaohe', '2026-10-12-qiaoxi'];
+  assert.deepEqual(IDS, [...oldIDs, ...dailyIDs]);
+  assert(IDS.every(id => /^[\w-]{1,40}$/.test(id)));
+  const storage = memory();
+  storage.setItem(STORAGE_KEY, JSON.stringify({ visits: Object.fromEntries(oldIDs.map(id => [id, 1])), pending: { longjing: { v: false, rev: 9 } }, revision: 9 }));
+  const options = { storage, online: () => false, request: async () => { throw Error('no production calls'); } };
+  const client = createVisitSync(options);
+  assert.equal(client.snapshot().visits.lingyin, 1);
+  assert(dailyIDs.every(id => !client.snapshot().visits[id]));
+  const oldVisits = { ...client.snapshot().visits };
+  client.set('2026-10-12-lingyin', true);
+  const reloaded = createVisitSync(options);
+  assert.equal(reloaded.snapshot().visits['2026-10-12-lingyin'], 1);
+  assert.equal(reloaded.snapshot().visits.lingyin, 1);
+  assert.deepEqual(Object.fromEntries(Object.entries(reloaded.snapshot().visits).filter(([id]) => oldIDs.includes(id))), oldVisits);
+  assert.deepEqual(reloaded.snapshot().pending.longjing, { v: false, rev: 9 });
+  assert.deepEqual(reloaded.snapshot().pending['2026-10-12-lingyin'], { v: true, rev: 10 });
+});
+
+test('dated tabs default to Today, old area hashes land in Earlier, and date changes never rewrite the plan', () => {
+  const defaultRoute = routeFixture();
+  assert.deepEqual(defaultRoute.route, { area: 'today', place: null });
+  for (const oldHash of ['#lake', '#neighbourhood', '#hefang', '#temple']) {
+    const legacy = routeFixture(oldHash);
+    assert.deepEqual(legacy.route, { area: 'earlier', place: null });
+    assert.deepEqual(legacy.areas.filter(area => !area.hidden).map(area => area.id), ['earlier']);
+  }
+  const html = fs.readFileSync(require.resolve('../hangzhou/index.html'), 'utf8');
+  for (const text of ['Monday 12 October 2026', 'Sunday 11 October 2026', 'Tuesday 13 October 2026']) assert(html.includes(text));
+  const source = fs.readFileSync(require.resolve('../hangzhou/guide.js'), 'utf8');
+  const context = { module: { exports: {} }, Date: class { constructor() { throw Error('Guide must not consult device date'); } static now() { throw Error('Guide must not consult device date'); } } };
+  vm.runInNewContext(source, context);
+  const areas = ['today', 'earlier', 'tomorrow'].map(id => ({ id, hidden: false }));
+  context.module.exports.createAreaNavigation({ areas, links: [], readHash: () => '', listen: () => {} });
+  assert.equal(areas.find(area => !area.hidden).id, 'today');
+});
+
+test('mixed-version tabs cannot overwrite new offline visits or their migrated history', () => {
+  const storage = memory();
+  const legacyKey = 'hangzhou-visits-v1';
+  const oldSnapshot = { visits: { lingyin: 1, beishan: 1 }, pending: { longjing: { v: true, rev: 4 } }, acknowledged: { beishan: 2 }, revision: 4 };
+  storage.setItem(legacyKey, JSON.stringify(oldSnapshot));
+  const options = { storage, online: () => false, request: async () => { throw Error('no network'); } };
+  const current = createVisitSync(options);
+  current.set('2026-10-12-xiaohe', true);
+  // v6 rewrites its v1 snapshot after an old tab tap or poll, knowing only its eleven IDs.
+  storage.setItem(legacyKey, JSON.stringify({ visits: { room: 1 }, pending: {}, revision: 5 }));
+  const reloaded = createVisitSync(options);
+  assert.equal(reloaded.snapshot().visits['2026-10-12-xiaohe'], 1);
+  assert.equal(reloaded.snapshot().visits.lingyin, 1);
+  assert.equal(reloaded.snapshot().visits.beishan, 1);
+  assert.equal(reloaded.snapshot().visits.longjing, 1);
+  assert.deepEqual(reloaded.snapshot().pending.longjing, { v: true, rev: 4 });
+  assert.deepEqual(reloaded.snapshot().pending['2026-10-12-xiaohe'], { v: true, rev: 5 });
+  assert.equal(reloaded.snapshot().visits.room, undefined);
+});
+
+test('existing v2 never reads v1 again, and failed migration preserves in-memory history with a warning', () => {
+  const seeded = JSON.stringify({ visits: { lingyin: 1 }, pending: { longjing: { v: true, rev: 2 } }, revision: 2 });
+  let legacyReads = 0;
+  const current = createVisitSync({
+    storage: { getItem: key => { if (key === 'hangzhou-visits-v1') { legacyReads++; throw Error('legacy must not be read'); } return seeded; }, setItem: () => {} },
+    online: () => false, request: async () => { throw Error('no network'); }
+  });
+  assert.equal(legacyReads, 0); assert.equal(current.snapshot().visits.lingyin, 1);
+  let warning;
+  const readonly = createVisitSync({
+    storage: { getItem: key => key === 'hangzhou-visits-v1' ? seeded : null, setItem: () => { throw Error('storage full'); } },
+    online: () => false, request: async () => { throw Error('no network'); }, status: text => { warning = text; }
+  });
+  readonly.set('2026-10-12-xiaohe', true);
+  assert.equal(readonly.snapshot().visits.lingyin, 1);
+  assert.equal(readonly.snapshot().visits['2026-10-12-xiaohe'], 1);
+  assert.deepEqual(readonly.snapshot().pending.longjing, { v: true, rev: 2 });
+  assert.match(warning, /may be lost on reload/);
 });

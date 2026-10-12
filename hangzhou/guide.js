@@ -2,8 +2,9 @@
 (function (root) {
   'use strict';
   const ENDPOINT = 'https://trips-sync.elcportal.workers.dev/hangzhou/state';
-  const STORAGE_KEY = 'hangzhou-visits-v1';
-  const IDS = ['luckin', 'beishan', 'yanggong', 'guozhuang', 'haier', 'room', 'hefang-street', 'imperial', 'lingyin', 'yongfu', 'longjing'];
+  const STORAGE_KEY = 'hangzhou-visits-v2';
+  const LEGACY_STORAGE_KEY = 'hangzhou-visits-v1';
+  const IDS = ['luckin', 'beishan', 'yanggong', 'guozhuang', 'haier', 'room', 'hefang-street', 'imperial', 'lingyin', 'yongfu', 'longjing', '2026-10-12-lingyin', '2026-10-12-yongfu', '2026-10-12-longjing', '2026-10-12-room', '2026-10-12-xiaohe', '2026-10-12-qiaoxi'];
 
   function createVisitSync({ storage, request, online, render = () => {}, status = () => {} }) {
     let visits = {}, pending = {}, acknowledged = {}, revision = 0, busy = null, storageOK = true, connected = false;
@@ -13,9 +14,10 @@
         if (item.v) visits[id] = 1; else delete visits[id];
       }
     }
-    function readSharedStorage(adoptVisits = false) {
+    function readSharedStorage(adoptVisits = false, initialRaw) {
       try {
-        const saved = JSON.parse(storage.getItem(STORAGE_KEY) || '{}');
+        const raw = initialRaw === undefined ? storage.getItem(STORAGE_KEY) : initialRaw;
+        const saved = JSON.parse(raw || '{}');
         if (adoptVisits && saved.visits) visits = clean(saved.visits);
         if (Number.isSafeInteger(saved.revision)) revision = Math.max(revision, saved.revision);
         for (const id of IDS) {
@@ -33,7 +35,16 @@
         return saved;
       } catch (_) { storageOK = false; return {}; }
     }
-    readSharedStorage(true);
+    // Snapshot v1 once; older open guides can keep writing v1 without truncating v2.
+    let initialRaw;
+    try {
+      initialRaw = storage.getItem(STORAGE_KEY);
+      if (initialRaw === null) {
+        initialRaw = storage.getItem(LEGACY_STORAGE_KEY) || '{}';
+        storage.setItem(STORAGE_KEY, initialRaw);
+      }
+    } catch (_) { storageOK = false; }
+    readSharedStorage(true, initialRaw);
     function report() {
       if (!storageOK) status('Phone storage unavailable — visits may be lost on reload. Keep this page open.');
       else if (Object.keys(pending).length) status(online() ? 'Saved on this phone · sharing pending; retrying automatically.' : 'Saved on this phone · will share when connected.');
@@ -106,13 +117,15 @@
   }
 
   function createAreaNavigation({ areas, links, places = [], readHash, listen, readScroll = () => 0, route = () => {}, scroll = () => {} }) {
-    const ids = ['lake', 'neighbourhood', 'hefang', 'temple'];
+    const ids = areas.map(area => area.id);
+    const aliases = { lake: 'earlier', neighbourhood: 'earlier', hefang: 'earlier', temple: 'earlier' };
+    const fallback = ids[0];
     const positions = {};
-    let selected = 'lake', selectedPlace = null;
+    let selected = fallback, selectedPlace = null;
     function apply(move = false) {
       const hash = readHash().replace(/^#/, '');
       const place = places.find(item => item.id === hash);
-      const id = place ? place.area : ids.includes(hash) ? hash : hash === 'main' ? selected : 'lake';
+      const id = place ? place.area : ids.includes(hash) ? hash : ids.includes(aliases[hash]) ? aliases[hash] : hash === 'main' ? selected : fallback;
       const placeId = place ? place.id : hash === 'main' ? selectedPlace : null;
       if (move && !selectedPlace) positions[selected] = readScroll();
       const returning = !!selectedPlace && !placeId;
@@ -132,7 +145,7 @@
     return { apply };
   }
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = { createVisitSync, createAreaNavigation, STORAGE_KEY, IDS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createVisitSync, createAreaNavigation, STORAGE_KEY, LEGACY_STORAGE_KEY, IDS };
   if (!root.document) return;
   const document = root.document;
   const navigation = document.querySelector('.section-nav');
@@ -193,7 +206,7 @@
   let copyTimer;
   document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
     const text = button.dataset.copy;
-    const container = button.closest('.place-view')?.querySelector('.copy-fallback-slot') || button.closest('.reservation, .food-helper');
+    const container = button.closest('.place-view')?.querySelector('.copy-fallback-slot') || button.closest('.reservation, .food-helper, .utility');
     const previous = container.querySelector('.manual-copy');
     try {
       if (!root.navigator.clipboard) throw new Error('Clipboard unavailable');
@@ -239,7 +252,7 @@
         controller.postMessage({ type: 'CHECK_HANGZHOU_CACHE' }, [channel.port2]);
       });
       if (check !== cacheCheck) return;
-      offlineMessage(result && result.cached && result.cache === 'trips-v6' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
+      offlineMessage(result && result.cached && result.cache === 'trips-v7' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
     } catch (_) { if (check === cacheCheck) offlineMessage('Offline availability unconfirmed · connect and reload.'); }
   }
   if ('serviceWorker' in root.navigator) {
