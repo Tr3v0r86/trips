@@ -1,5 +1,5 @@
 // ponytail: cache-first SW, bump CACHE version on any content change
-const CACHE = 'trips-v8';
+const CACHE = 'trips-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -16,7 +16,10 @@ const ASSETS = [
   './hangzhou/guide.js',
   './hangzhou/images/west-lake.jpg',
   './hangzhou/images/hefang.jpg',
-  './hangzhou/images/lingyin.jpg'
+  './hangzhou/images/lingyin.jpg',
+  './shanghai/',
+  './shanghai/index.html',
+  './shanghai/guide.js'
 ];
 
 self.addEventListener('install', e => {
@@ -49,9 +52,10 @@ self.addEventListener('fetch', e => {
 
 // Confirmation comes from this active cache, never from registration alone.
 self.addEventListener('message', e => {
-  if (!e.data || e.data.type !== 'CHECK_HANGZHOU_CACHE' || !e.ports[0]) return;
+  const dir = e.data && { CHECK_HANGZHOU_CACHE: './hangzhou/', CHECK_SHANGHAI_CACHE: './shanghai/' }[e.data.type];
+  if (!dir || !e.ports[0]) return;
   e.waitUntil(caches.open(CACHE).then(async cache => {
-    const needed = ASSETS.filter(path => path.startsWith('./hangzhou/'));
+    const needed = ASSETS.filter(path => path.startsWith(dir));
     const hits = await Promise.all(needed.map(path => cache.match(path)));
     e.ports[0].postMessage({ cache: CACHE, cached: hits.every(Boolean) });
   }).catch(() => e.ports[0].postMessage({ cache: CACHE, cached: false })));

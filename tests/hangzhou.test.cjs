@@ -91,7 +91,7 @@ test('HTTP failures and malformed responses preserve pending intent', async () =
   }
 });
 
-test('active v8 worker confirms complete guide cache and rejects missing images', async () => {
+test('active v9 worker confirms complete guide cache and rejects missing images', async () => {
   let callbacks = {}, missing = false, assets;
   const context = {
     URL, Promise,
@@ -107,7 +107,7 @@ test('active v8 worker confirms complete guide cache and rejects missing images'
   for (const incomplete of [false, true]) {
     missing = incomplete; let reply;
     callbacks.message({ data: { type: 'CHECK_HANGZHOU_CACHE' }, ports: [{ postMessage: value => { reply = value; } }], waitUntil: p => { operation = p; } });
-    await operation; assert.equal(reply.cache, 'trips-v8'); assert.equal(reply.cached, !incomplete);
+    await operation; assert.equal(reply.cache, 'trips-v9'); assert.equal(reply.cached, !incomplete);
   }
   let intercepted = false;
   callbacks.fetch({ request: { method: 'GET', url: 'https://trips-sync.elcportal.workers.dev/hangzhou/state' }, respondWith: () => { intercepted = true; } });
