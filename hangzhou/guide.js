@@ -252,7 +252,7 @@
         controller.postMessage({ type: 'CHECK_HANGZHOU_CACHE' }, [channel.port2]);
       });
       if (check !== cacheCheck) return;
-      offlineMessage(result && result.cached && result.cache === 'trips-v9' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
+      offlineMessage(result && result.cached && result.cache === 'trips-v10' ? 'Available offline · guide + photos saved.' : 'Offline guide not ready · connect and reload to save it.');
     } catch (_) { if (check === cacheCheck) offlineMessage('Offline availability unconfirmed · connect and reload.'); }
   }
   if ('serviceWorker' in root.navigator) {

@@ -6,13 +6,13 @@ const html = read('../shanghai/index.html'), js = read('../shanghai/guide.js'), 
 test('every Shanghai ID has one place view and one checkbox, in order; Amap links search 上海', () => {
   for (const id of IDS) assert(html.includes(`id="place-${id}"`) && html.includes(`id="place-${id}-title"`), id);
   assert.deepEqual([...html.matchAll(/data-id="([^"]+)"/g)].map(m => m[1]), IDS);
-  assert.equal(new Set(IDS).size, 16);
+  assert.equal(new Set(IDS).size, 15);
   assert(!html.includes('<img '));
   for (const [, href] of html.matchAll(/href="(https:\/\/uri.amap.com\/search[^"]+)"/g)) {
     const url = new URL(href.replaceAll('&amp;', '&'));
     assert.equal(url.searchParams.get('city'), '上海'); assert(url.searchParams.get('keyword'));
   }
-  for (const chapter of ['today', 'tomorrow', 'friday', 'earlier']) assert(html.includes(`id="${chapter}"`) && html.includes(`id="${chapter}-title"`) && html.includes(`href="#${chapter}"`));
+  for (const chapter of ['today', 'friday', 'earlier']) assert(html.includes(`id="${chapter}"`) && html.includes(`id="${chapter}-title"`) && html.includes(`href="#${chapter}"`));
   assert(html.includes('href="../hangzhou/"'));
 });
 

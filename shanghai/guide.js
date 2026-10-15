@@ -3,7 +3,7 @@
   'use strict';
   const ENDPOINT = 'https://trips-sync.elcportal.workers.dev/shanghai/state';
   const STORAGE_KEY = 'shanghai-visits-v1';
-  const IDS = ['2026-10-14-lunch', '2026-10-14-anfu', '2026-10-14-line1', '2026-10-14-nanjing', '2026-10-14-bund', '2026-10-14-dinner', '2026-10-14-after', '2026-10-14-home', '2026-10-15-yuyuan', '2026-10-15-oldcity', '2026-10-15-lunch', '2026-10-15-rockbund', '2026-10-15-westbund-go', '2026-10-15-ride', '2026-10-15-museum', '2026-10-15-dinner'];
+  const IDS = ['2026-10-14-lunch', '2026-10-14-anfu', '2026-10-14-line1', '2026-10-14-nanjing', '2026-10-14-bund', '2026-10-14-dinner', '2026-10-14-after', '2026-10-14-home', '2026-10-15-line7', '2026-10-15-ride', '2026-10-15-lunch-lanes', '2026-10-15-rest', '2026-10-15-wuyuan', '2026-10-15-fumin', '2026-10-15-home'];
 
   function createVisitSync({ storage, request, online, render = () => {}, status = () => {} }) {
     let visits = {}, pending = {}, acknowledged = {}, revision = 0, busy = null, storageOK = true, connected = false;
@@ -240,7 +240,7 @@
         controller.postMessage({ type: 'CHECK_SHANGHAI_CACHE' }, [channel.port2]);
       });
       if (check !== cacheCheck) return;
-      offlineMessage(result && result.cached && result.cache === 'trips-v9' ? 'Available offline · guide saved.' : 'Offline guide not ready · connect and reload to save it.');
+      offlineMessage(result && result.cached && result.cache === 'trips-v10' ? 'Available offline · guide saved.' : 'Offline guide not ready · connect and reload to save it.');
     } catch (_) { if (check === cacheCheck) offlineMessage('Offline availability unconfirmed · connect and reload.'); }
   }
   if ('serviceWorker' in root.navigator) {
